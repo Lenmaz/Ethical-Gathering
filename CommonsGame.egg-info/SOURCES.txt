@@ -1,0 +1,7 @@
+README.md
+setup.py
+CommonsGame.egg-info/PKG-INFO
+CommonsGame.egg-info/SOURCES.txt
+CommonsGame.egg-info/dependency_links.txt
+CommonsGame.egg-info/requires.txt
+CommonsGame.egg-info/top_level.txt
