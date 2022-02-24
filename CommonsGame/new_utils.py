@@ -67,7 +67,7 @@ def new_action_space(action_space, env):
     return action_space
 
 
-def new_state(agent, state, tabularRL, forced_agent_apples=-1, forced_grass=[False, False, False], forced_ag_pos=[-1, -1]):
+def new_state(agent, state, tabularRL, forced_agent_apples=-1, forced_grass=[False, False, False], forced_ag_pos=[]):
     """
     TODO: Modify the state (if you are using Tabular RL) to simplify it so it can be useful to the agent
     Ideally you will be able to create a map from every state to a different integer number
@@ -85,15 +85,23 @@ def new_state(agent, state, tabularRL, forced_agent_apples=-1, forced_grass=[Fal
         else:
             # Obtain the agent's position:
 
+            agents_x = list()
+            agents_y = list()
 
-            if forced_ag_pos[0] > -1 and forced_ag_pos[1] > -1:
-                agent_x = forced_ag_pos[0]
-                agent_y = forced_ag_pos[1]
+            if len(forced_ag_pos) > 0:
+
+                for ag in range(number_of_agents):
+                    agents_x.append(forced_ag_pos[0])
+                    agents_y.append(forced_ag_pos[1])
             else:
-                agent_x = state[-1 - 4 * number_of_agents + 4 * agent]
-                agent_y = state[-4 * number_of_agents + 4 * agent]
+                for ag in range(number_of_agents):
+                    agents_x.append(state[-1 - 4 * number_of_agents + 4 * agent])
+                    agents_y.append(state[-4 * number_of_agents + 4 * agent])
 
-            position = agent_x + agent_x_position*agent_y  # we encode them as a scalar, there are 16 different positions
+            position = 0
+
+            for ag in range(number_of_agents):
+                position += (agents_x[ag] + agent_x_position*agents_y[ag])*(agent_x_position*agent_y_position)**ag   # we encode them as a scalar, there are 16 different positions
 
             # Obtain the agent's amount of apples, but we only consider four possible values
             if forced_agent_apples > -1:
