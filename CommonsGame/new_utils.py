@@ -16,7 +16,6 @@ for x in range(2, 2 + agent_x_position):
     for y in range(agent_y_position):
         agent_positions.append([x, y])
 
-print(agent_positions)
 
 two_agent_positions = list()
 
@@ -24,7 +23,6 @@ for ag_pos in agent_positions:
     for ag_pos2 in agent_positions:
         two_agent_positions.append([ag_pos, ag_pos2])
 
-print(two_agent_positions)
 
 if number_of_agents == 2:
     agent_positions = two_agent_positions

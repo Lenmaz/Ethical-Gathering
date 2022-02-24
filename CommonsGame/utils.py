@@ -24,17 +24,13 @@ def buildMap(mapSketch, numPadPixels, agentChars, mandatory_initial_position=[])
     nonFilledSpots = np.argwhere(np.logical_and(gameMap != '@', gameMap != '='))
     selectedSpots = np.random.choice(nonFilledSpots.shape[0], size=(numAgents,), replace=False)
     agentsCoords = nonFilledSpots[selectedSpots, :]
-    print(agentsCoords)
 
     for idx, coord in enumerate(agentsCoords):
         if len(mandatory_initial_position) == 1:
             coord = mandatory_initial_position
         else:
-            print("here 1?")
             if len(mandatory_initial_position) > idx and not isinstance(mandatory_initial_position[idx], int):
-                print("here 2?", mandatory_initial_position)
                 coord = mandatory_initial_position[idx]
-        print("coord", coord, agentChars, idx, mandatory_initial_position)
 
         gameMap[coord[0], coord[1]] = agentChars[idx]
 

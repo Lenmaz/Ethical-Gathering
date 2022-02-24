@@ -134,7 +134,6 @@ def evaluation(env, policy, tabularRL):
 
         nObservations, rewards, nDone, _ = env.step([action])
 
-        print(rewards[0])
         state = list()
         for agent in range(number_of_agents):
             state.append(new_state(agent, nObservations[agent], tabularRL))

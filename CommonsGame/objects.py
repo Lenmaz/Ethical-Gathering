@@ -14,9 +14,7 @@ class PlayerSprite(sprites.MazeWalker):
         self.agentChars = agentChars
         self.orientation = 0
 
-        print("hello fellas: ", forced_pos, character, ord(character))
         if len(forced_pos) > 0:
-            print("zis happened")
             if isinstance(forced_pos[0], int):
                 this_forced_pos = forced_pos
             else:
@@ -24,15 +22,8 @@ class PlayerSprite(sprites.MazeWalker):
             self.initPos = this_forced_pos
             self._teleport((int(this_forced_pos[0] + 3), int(this_forced_pos[1] + 3)))  #TODO: +3 RELATED WITH SIGHTRADIUS
         else:
-            print("this happened")
             self.initPos = position
 
-
-
-
-
-
-        print(self.initPos[0], self.initPos[1])
         self.visualRadius = 0
         self.timeout = 0
 
@@ -260,7 +251,6 @@ class AppleDrape(pythings.Drape):
             #agent_efficiency = things[self.agentChars[i]].efficiency # The number of apples it can collect on each turn
             agent_efficiency = 1
             rew = self.curtain[things[self.agentChars[i]].position[0], things[self.agentChars[i]].position[1]]
-            print("rew", rew)
 
             greedy = False  # A greedy agent takes more apples than what it needs
             not_stupid = False # A stupid agent does not take more apples when it needs them
