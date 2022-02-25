@@ -6,6 +6,8 @@ from new_utils import *
 
 
 policy_NULL = np.load("policy_NULL.npy")
+policy_0 = np.load("policy_0.npy")
+policy_1 = np.load("policy_1.npy")
 
 
 def probsV_no_apples_in_ground(agent, V, nObservations, tabularRL, forced_agent_apples=-1):
@@ -133,10 +135,11 @@ def evaluation(agent, env, policy, tabularRL, learning_agents=2):
 
         env.render()
 
-        actions = [policy_NULL[states[0]], policy_NULL[states[1]]]
-        actions[agent] = policy[states[agent]]
+        #actions = [policy_NULL[states[0]] for i in range(number_of_agents)]
+        #actions[agent] = policy[states[agent]]
 
-        print(agent, states[agent], policy[states[agent]])
+        actions = [policy_0[states[0]], policy_1[states[1]]]
+        print(agent, states, policy[states[agent]], actions)
 
         if learning_agents == 2:
             #actions[agent - 1 % 2] = policy[states[agent - 1 % 2]]
@@ -147,7 +150,7 @@ def evaluation(agent, env, policy, tabularRL, learning_agents=2):
 
         states = list()
         for ag in range(number_of_agents):
-            states.append(new_state(ag, initial_state[agent], tabularRL))
+            states.append(new_state(ag, nObservations[agent], tabularRL))
 
         print("--Time step", t, "--")
 
@@ -209,10 +212,14 @@ def sweep_Q_function(agent, Q, V, action_space, mode, discount_factor, weights):
                         original_state = env.reset(num_apples=n_apples, common_pool=c_state, apples_yes_or_not=ap_state)
                         state = new_state(agent, original_state[agent], tabularRL)
 
+
+
                         actions = [policy_NULL[state], policy_NULL[state]]
                         actions[agent] = action
 
                         nObservations, nRewards, _, _ = env.step(actions)
+
+
 
                         #for agent in range(number_of_agents):
 
@@ -221,6 +228,10 @@ def sweep_Q_function(agent, Q, V, action_space, mode, discount_factor, weights):
                         V_prima = probsV_calculator(agent, V[agent], original_state, nObservations, tabularRL)
 
                         Q[agent][state][action] = reward + discount_factor * V_prima
+
+                        if state == 4058:
+                            print(original_state[agent], action, nObservations, nRewards, Q[agent][state][action])
+
 
 
                     # Update V
@@ -234,7 +245,7 @@ def sweep_Q_function(agent, Q, V, action_space, mode, discount_factor, weights):
     return Q, V
 
 
-def value_iteration(tabularRL, agent=who_is_the_learning_agent, mode="lex", discount_factor=0.8, weights=[1.0, 0.0], num_iterations=1):
+def value_iteration(tabularRL, agent, mode="lex", discount_factor=0.8, weights=[1.0, 0.0], num_iterations=3):
     """
     Adapted for VI
 
@@ -267,22 +278,15 @@ if __name__ == '__main__':
     total_action_space = [i for i in range(environment.action_space.n)]
     action_space = new_action_space(total_action_space, environment)
 
-    #Q_functions, V_functions = value_iteration(tabularRL, mode=mode, weights=weights)
-    #np.save("Q_func.npy", Q_functions[0])
-    #np.save("V_func.npy", V_functions[0])
-    Q_function = np.load("Q_func.npy")
-    policy = policy_creator(Q_function, action_space, mode=mode, weights=weights)
-    np.save("policy.npy", policy)
-    policy = np.load("policy.npy")
+    #Q_functions, V_functions = value_iteration(tabularRL, who_is_the_learning_agent, mode=mode, weights=weights)
+    #np.save("Q_func.npy", Q_functions[who_is_the_learning_agent])
+    #np.save("V_func.npy", V_functions[who_is_the_learning_agent])
+    #Q_function = np.load("Q_func.npy")
+    #policy = policy_creator(Q_function, action_space, mode=mode, weights=weights)
+    #np.save("policy_"+str(who_is_the_learning_agent)+".npy", policy)
+    policy = np.load("policy_"+str(who_is_the_learning_agent)+".npy")
 
-
-    #policy = policy_creator(None, None, mode="dumb")
-    #np.save("policy_NULL.npy", policy)
-    #policy = np.load("policy_NULL.npy")
-
-
-
-    env = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL, agent_pos=[[4, 0], [2, 0]])
+    env = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL, agent_pos=[[2, 0],[4, 0]])
     evaluation(who_is_the_learning_agent, env, policy, tabularRL)
 
     #V = np.load("V_func.npy")

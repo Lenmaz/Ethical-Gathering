@@ -27,7 +27,7 @@ def buildMap(mapSketch, numPadPixels, agentChars, mandatory_initial_position=[])
 
     for idx, coord in enumerate(agentsCoords):
         if len(mandatory_initial_position) == 1:
-            coord = mandatory_initial_position
+            coord = mandatory_initial_position[idx]
         else:
             if len(mandatory_initial_position) > idx and not isinstance(mandatory_initial_position[idx], int):
                 coord = mandatory_initial_position[idx]

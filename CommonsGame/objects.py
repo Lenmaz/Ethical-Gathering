@@ -228,6 +228,7 @@ class AppleDrape(pythings.Drape):
 
         self.common_pool = 0
         self.common_pool_had_one_apple = False
+        self.both_agents_took_donation = False
 
     def update(self, actions, board, layers, backdrop, things, the_plot):
         rewards = []
@@ -244,7 +245,15 @@ class AppleDrape(pythings.Drape):
             agents_together = True
 
 
+        if len(self.agentChars) > 1:
+            for i in range(len(self.agentChars)):
+                self.both_agents_took_donation *= things[self.agentChars[i]].took_donation
+
+
+
         for i in range(len(self.agentChars)):
+
+
 
 
 
@@ -308,10 +317,15 @@ class AppleDrape(pythings.Drape):
                         self.common_pool -= 1
 
                     if self.common_pool == 0:
-                        things[self.agentChars[i]].has_apples += 0.5
-                        took_donation = 0.5
 
-                        self.common_pool_had_one_apple = not self.common_pool_had_one_apple
+                        if self.both_agents_took_donation:
+                            things[self.agentChars[i]].has_apples += 0.5
+                            took_donation = 0.5
+
+                            self.common_pool_had_one_apple = not self.common_pool_had_one_apple
+                            self.both_agents_took_donation = False
+                        else:
+                            things[self.agentChars[i]].has_apples += 1
                     else:
                         things[self.agentChars[i]].has_apples += 1
 
