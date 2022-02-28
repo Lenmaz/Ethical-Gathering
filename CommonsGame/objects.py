@@ -34,7 +34,9 @@ class PlayerSprite(sprites.MazeWalker):
         self.is_sick = False
         self.did_nothing = False
         self.took_donation = False
-        self.efficiency = 1
+
+        self.efficiency = 1 if character == "A" else 4
+
         self.probability_getting_sick = 0
         self.donated_apples = 0
 
@@ -244,42 +246,37 @@ class AppleDrape(pythings.Drape):
         if pos_x[0] == pos_x[1] and pos_y[0] == pos_y[1]:
             agents_together = True
 
-
         if len(self.agentChars) > 1:
+            self.both_agents_took_donation = True
             for i in range(len(self.agentChars)):
                 self.both_agents_took_donation *= things[self.agentChars[i]].took_donation
 
+        agent_efficiencies = []
 
+        if len(self.agentChars) > 1:
+            for i in range(len(self.agentChars)):
+                agent_efficiencies.append(things[self.agentChars[i]].efficiency) # The number of apples it can collect on each turn
 
         for i in range(len(self.agentChars)):
 
+            agent_efficiency = things[self.agentChars[i]].efficiency # The number of apples it can collect on each turn
 
-
-
-
-            #agent_efficiency = things[self.agentChars[i]].efficiency # The number of apples it can collect on each turn
-            agent_efficiency = 1
             rew = self.curtain[things[self.agentChars[i]].position[0], things[self.agentChars[i]].position[1]]
 
             greedy = False  # A greedy agent takes more apples than what it needs
             not_stupid = False # A stupid agent does not take more apples when it needs them
             if rew:
-                self.curtain[things[self.agentChars[i]].position[0], things[self.agentChars[i]].position[1]] = False
-                multiplier = 1.0
-
                 if agents_together:
-                    multiplier = 0.5
-                    rew = 0.5
-                    self.all_agents_deserve_apple = True
+                    if agent_efficiency == max(agent_efficiencies):
+                        self.curtain[
+                        things[self.agentChars[i]].position[0], things[self.agentChars[i]].position[1]] = False
+                        things[self.agentChars[i]].has_apples += 1
+                    else:
+                        pass
+                else:
+                    self.curtain[things[self.agentChars[i]].position[0], things[self.agentChars[i]].position[1]] = False
+                    things[self.agentChars[i]].has_apples += 1
 
-                things[self.agentChars[i]].has_apples += multiplier*agent_efficiency
-                #greedy = things[self.agentChars[i]].has_apples > TOO_MANY_APPLES
-            else:
-                if agents_together:
-                    if self.all_agents_deserve_apple:
-                        things[self.agentChars[i]].has_apples += 0.5 * agent_efficiency
-                        rew = 0.5
-                        self.all_agents_deserve_apple = False
 
             #elif things[self.agentChars[i]].did_nothing:
             #    not_stupid = things[self.agentChars[i]].has_apples > TOO_MANY_APPLES
@@ -316,19 +313,22 @@ class AppleDrape(pythings.Drape):
                     if self.common_pool > 0:
                         self.common_pool -= 1
 
-                    if self.common_pool == 0:
+                        if self.common_pool == 0:
+                            self.common_pool_had_one_apple = True
 
-                        if self.both_agents_took_donation:
-                            things[self.agentChars[i]].has_apples += 0.5
-                            took_donation = 0.5
-
-                            self.common_pool_had_one_apple = not self.common_pool_had_one_apple
-                            self.both_agents_took_donation = False
+                    if self.common_pool == 0 and self.both_agents_took_donation:
+                        if self.common_pool_had_one_apple:
+                            if agent_efficiency == max(agent_efficiencies):
+                                things[self.agentChars[i]].has_apples += 1
+                                self.common_pool_had_one_apple = False
+                            else:
+                                took_donation = False
                         else:
-                            things[self.agentChars[i]].has_apples += 1
+                            took_donation = False
+
                     else:
                         things[self.agentChars[i]].has_apples += 1
-
+                        self.common_pool_had_one_apple = False
 
                 else:
                     took_donation = False  # To guarantee that it only receives reward if there are apples

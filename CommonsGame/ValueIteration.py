@@ -6,8 +6,8 @@ from new_utils import *
 
 
 policy_NULL = np.load("policy_NULL.npy")
-policy_0 = np.load("policy_0.npy")
-policy_1 = np.load("policy_1.npy")
+policy_0 = np.load("policy_0_i2.npy")
+policy_1 = np.load("policy_1_i2.npy")
 
 
 def probsV_no_apples_in_ground(agent, V, nObservations, tabularRL, forced_agent_apples=-1):
@@ -141,10 +141,6 @@ def evaluation(agent, env, policy, tabularRL, learning_agents=2):
         actions = [policy_0[states[0]], policy_1[states[1]]]
         print(agent, states, policy[states[agent]], actions)
 
-        if learning_agents == 2:
-            #actions[agent - 1 % 2] = policy[states[agent - 1 % 2]]
-            pass
-            #TODO: Correct
 
         nObservations, rewards, nDone, _ = env.step(actions)
 
@@ -214,7 +210,7 @@ def sweep_Q_function(agent, Q, V, action_space, mode, discount_factor, weights):
 
 
 
-                        actions = [policy_NULL[state], policy_NULL[state]]
+                        actions = [policy_0[state], policy_1[state]]
                         actions[agent] = action
 
                         nObservations, nRewards, _, _ = env.step(actions)
@@ -228,10 +224,6 @@ def sweep_Q_function(agent, Q, V, action_space, mode, discount_factor, weights):
                         V_prima = probsV_calculator(agent, V[agent], original_state, nObservations, tabularRL)
 
                         Q[agent][state][action] = reward + discount_factor * V_prima
-
-                        if state == 4058:
-                            print(original_state[agent], action, nObservations, nRewards, Q[agent][state][action])
-
 
 
                     # Update V
@@ -284,7 +276,7 @@ if __name__ == '__main__':
     #Q_function = np.load("Q_func.npy")
     #policy = policy_creator(Q_function, action_space, mode=mode, weights=weights)
     #np.save("policy_"+str(who_is_the_learning_agent)+".npy", policy)
-    policy = np.load("policy_"+str(who_is_the_learning_agent)+".npy")
+    policy = np.load("policy_NULL.npy")
 
     env = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL, agent_pos=[[2, 0],[4, 0]])
     evaluation(who_is_the_learning_agent, env, policy, tabularRL)
