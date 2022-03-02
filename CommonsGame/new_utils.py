@@ -1,7 +1,7 @@
 from constants import TOO_MANY_APPLES
 
 number_of_agents = 2
-who_is_the_learning_agent = 1
+who_is_the_learning_agent = 0
 number_of_objectives = 2
 
 only_ethical_matters = [0.0, 1.0]

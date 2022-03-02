@@ -6,8 +6,8 @@ from new_utils import *
 
 
 policy_NULL = np.load("policy_NULL.npy")
-policy_0 = np.load("policy_0_i2.npy")
-policy_1 = np.load("policy_1_i2.npy")
+policy_0 = np.load("policy_0_UNETHICAL.npy")
+policy_1 = np.load("policy_1_UNETHICAL.npy")
 
 
 def probsV_no_apples_in_ground(agent, V, nObservations, tabularRL, forced_agent_apples=-1):
@@ -262,8 +262,8 @@ def value_iteration(tabularRL, agent, mode="lex", discount_factor=0.8, weights=[
 
 if __name__ == '__main__':
     tabularRL = True
-    weights = [1.0, 1.0]
-    mode = "lex"
+    weights = [1.0, 0.0]
+    mode = "scalarisation"
 
     environment = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL)
 
@@ -276,6 +276,7 @@ if __name__ == '__main__':
     #Q_function = np.load("Q_func.npy")
     #policy = policy_creator(Q_function, action_space, mode=mode, weights=weights)
     #np.save("policy_"+str(who_is_the_learning_agent)+".npy", policy)
+
     policy = np.load("policy_NULL.npy")
 
     env = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL, agent_pos=[[2, 0],[4, 0]])
