@@ -9,6 +9,7 @@ from CommonsGame.utils import buildMap, ObservationToArrayWithRGB
 from CommonsGame.objects import PlayerSprite, AppleDrape, SightDrape, ShotDrape
 from CommonsGame.constants import TIMEOUT_FRAMES, SUSTAINABILITY_MATTERS
 
+
 class CommonsGame(gym.Env):
     """Custom Environment that follows gym interface"""
     metadata = {'render.modes': ['human']}
@@ -20,8 +21,11 @@ class CommonsGame(gym.Env):
 
     TURN_CLOCKWISE = 4
     TURN_COUNTERCLOCKWISE = 5
+
     STAY = 6
+
     SHOOT = 7
+
     DONATE = 8
     TAKE_DONATION = 9
 
@@ -52,7 +56,6 @@ class CommonsGame(gym.Env):
             self.observation_space = spaces.Box(low=0, high=255, shape=(obHeight, obWidth, 3), dtype=np.uint8)
         self.numPadPixels = numPadPixels = visualRadius - 1
 
-        print("The pos : ", self.agent_pos)
         self.gameField = buildMap(mapSketch, numPadPixels=numPadPixels, agentChars=agentChars, mandatory_initial_position=self.agent_pos)
 
         self.state = None
@@ -73,7 +76,6 @@ class CommonsGame(gym.Env):
         agentsOrder = list(self.agentChars)
         random.shuffle(agentsOrder)
 
-        print("Happens this first", self.agentChars)
         return ascii_art.ascii_art_to_game(
             self.gameField,
             what_lies_beneath=' ',
@@ -102,10 +104,8 @@ class CommonsGame(gym.Env):
         ags = [self._game.things[c] for c in self.agentChars]
         for i, a in enumerate(ags):
             a.set_sickness(self.sick_probabilities[i])
-            a.set_efficiency(self.efficiency_probabilites[i])
-
-            if i == 0:
-                a.set_init_apples(num_apples)
+            #a.set_efficiency(self.efficiency_probabilites[i]) #TODO: Not random efficiency
+            a.set_init_apples(num_apples) # all agents have the same amount of apples, why not?
 
         self._game.things['@'].common_pool = common_pool
 
