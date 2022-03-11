@@ -6,7 +6,7 @@ numAgents = 2
 
 env = gym.make('CommonsGame:CommonsGame-v0', numAgents=numAgents, visualRadius=3, mapSketch=tinyMap,
                fullState=False, tabularState=True, agent_pos=[[4, 1], [4, 1]])
-initial_state = env.reset(common_pool=3)
+initial_state = env.reset(num_apples=1, common_pool=0)
 
 print(env.observation_space)
 
@@ -28,7 +28,7 @@ print(initial_state[0])
 for t in range(100):
 
     #nActions = np.random.randint(low=0, high=env.action_space.n, size=(numAgents,)).tolist()
-    nActions = [TAKE_DONATION, STAY]
+    nActions = [DONATE, TAKE_DONATION]
     nObservations, nRewards, nDone, nInfo = env.step(nActions)
 
     print(nObservations[0], nRewards)

@@ -257,6 +257,9 @@ class AppleDrape(pythings.Drape):
             for i in range(len(self.agentChars)):
                 agent_efficiencies.append(things[self.agentChars[i]].efficiency) # The number of apples it can collect on each turn
 
+        cannot_receive_yet = False #only when the common pool had 0 apples, one agent donates and the other tries to take it in the same turn
+
+
         for i in range(len(self.agentChars)):
 
             agent_efficiency = things[self.agentChars[i]].efficiency # The number of apples it can collect on each turn
@@ -265,6 +268,12 @@ class AppleDrape(pythings.Drape):
 
             greedy = False  # A greedy agent takes more apples than what it needs
             not_stupid = False # A stupid agent does not take more apples when it needs them
+            hungry = False
+            apple_lost = False
+
+            if things[self.agentChars[i]].has_apples < TOO_MANY_APPLES:
+                hungry = True
+
             if rew:
                 if agents_together:
                     if agent_efficiency == max(agent_efficiencies):
@@ -293,10 +302,22 @@ class AppleDrape(pythings.Drape):
 
                     donation = False   ## If the agent itself doesn't have enough apples, it isn't a donation, it's more like an extortion
 
+                    if things[self.agentChars[i]].has_apples == TOO_MANY_APPLES:
+
+                        apple_lost = True
+
+                if self.common_pool >= TOO_MANY_APPLES*len(self.agentChars):
+                    donation = False ## No ethical reward if the common pool already has a lot of apples
+
+
                 things[self.agentChars[i]].has_donated = False
                 things[self.agentChars[i]].has_apples -= 1
                 things[self.agentChars[i]].donated_apples += 1
                 self.common_pool += 1
+
+
+                if self.common_pool == 1:
+                    cannot_receive_yet = True
 
             elif took_donation:
                 things[self.agentChars[i]].took_donation = False
@@ -308,10 +329,14 @@ class AppleDrape(pythings.Drape):
                 #    took_donation = False
                 #else:
                 if self.common_pool > 0 or self.common_pool_had_one_apple:
-                    greedy = things[self.agentChars[i]].has_apples >= TOO_MANY_APPLES or len(apples_taken_in_ground) < self.max_apples_in_ground
+                    greedy = not hungry or len(apples_taken_in_ground) < self.max_apples_in_ground
 
                     if self.common_pool > 0:
-                        self.common_pool -= 1
+
+                        if cannot_receive_yet:
+                            took_donation = False
+                        else:
+                            self.common_pool -= 1
 
                         if self.common_pool == 0:
                             self.common_pool_had_one_apple = True
@@ -327,8 +352,9 @@ class AppleDrape(pythings.Drape):
                             took_donation = False
 
                     else:
-                        things[self.agentChars[i]].has_apples += 1
-                        self.common_pool_had_one_apple = False
+                        if not cannot_receive_yet:
+                            things[self.agentChars[i]].has_apples += 1
+                            self.common_pool_had_one_apple = False
 
                 else:
                     took_donation = False  # To guarantee that it only receives reward if there are apples
@@ -339,8 +365,8 @@ class AppleDrape(pythings.Drape):
                 rewards.append(0)
             else:
                 # The rewards takes into account if an apple has been gathered or if an apple has been donated
-                individual_reward = rew*APPLE_GATHERING_REWARD + took_donation*TOOK_DONATION_REWARD
-                ethical_reward = donation*DONATION_REWARD + shot*SHOOTING_PUNISHMENT + greedy*TOO_MANY_APPLES_PUNISHMENT
+                individual_reward = rew*APPLE_GATHERING_REWARD + took_donation*TOOK_DONATION_REWARD + hungry*HUNGER
+                ethical_reward = donation*DONATION_REWARD + shot*SHOOTING_PUNISHMENT + greedy*TOO_MANY_APPLES_PUNISHMENT + apple_lost*LOST_APPLE
                 sustain_reward = + not_stupid*DID_NOTHING_BECAUSE_MANY_APPLES_REWARD
 
                 # for Single_Objective you need: the_reward = individual_reward

@@ -1,4 +1,10 @@
+import numpy as np
 from constants import TOO_MANY_APPLES
+
+
+policy_NULL = np.load("policy_NULL.npy")
+policy_0 = np.load("policy_0.npy")
+policy_1 = np.load("policy_1.npy")
 
 number_of_agents = 2
 who_is_the_learning_agent = 0
@@ -31,7 +37,7 @@ if number_of_agents == 2:
 # for tinyMap
 positions_with_apples = [[2, 1], [2, 2], [3, 1]]
 agent_num_apples = [0, TOO_MANY_APPLES - 1, TOO_MANY_APPLES, TOO_MANY_APPLES + 1]
-common_pool_states = range(3)
+common_pool_states = [0, 1, 2, number_of_agents*TOO_MANY_APPLES]
 
 apple_states = list()  # for this to work you need SUSTAINABILITY_MATTERS TRUE, which makes that no new apple appears
 for i in range(2):
@@ -46,6 +52,7 @@ apples_in_ground = len(apple_states)
 common_pool_max = len(common_pool_states)
 
 len_state_space = n_agent_cells*n_apples*apples_in_ground*common_pool_max + 1  # You need to change this!!! This is provisional and only works for tinyMap
+
 
 print("State space: ", len_state_space)
 
@@ -68,7 +75,7 @@ def new_action_space(action_space, env):
     return action_space
 
 
-def new_state(agent, state, tabularRL, forced_agent_apples=-1, forced_grass=[False, False, False], forced_ag_pos=[]):
+def new_state(agent, state, tabularRL, forced_agent_apples=-1, forced_grass=[False, False, False], forced_ag_pos=[], forced_pool=-1):
     """
     TODO: Modify the state (if you are using Tabular RL) to simplify it so it can be useful to the agent
     Ideally you will be able to create a map from every state to a different integer number
@@ -120,7 +127,17 @@ def new_state(agent, state, tabularRL, forced_agent_apples=-1, forced_grass=[Fal
                 else:
                     agent_apples = 3
 
-            common_pool_apples = min(state[-1], common_pool_max - 1) # 6 different values
+            if forced_pool >= 0:
+                common_pool_apples = min(forced_pool, 3)
+            else:
+                real_common_pool = state[-1]
+
+                if real_common_pool < TOO_MANY_APPLES*number_of_agents:
+                    common_pool_apples = min(state[-1], 2) #TODO: Very dependent of states definition
+                else:
+                    common_pool_apples = common_pool_max - 1
+
+
 
             # Apple states, we know which ones they are in tinyMap, so we look for each of them if there is an apple:
 
@@ -177,6 +194,121 @@ def check_apples_state(state):
 def check_agent_apples_state(agent, state):
     # Obtain the agent's real amount of apples
     return state[1 - 4 * number_of_agents + 4 * agent]
+
+
+def check_common_pool(state):
+    return state[-1]
+
+
+def scalarisation_function(values, w):
+    """
+    Scalarises the value of a state using a linear scalarisation function
+
+    :param values: the different components V_0(s), ..., V_n(s) of the value of the state
+    :param w:  the weight vector of the scalarisation function
+    :return:  V(s), the scalarised value of the state
+    """
+
+    f = 0
+    for objective in range(len(values)):
+        f += w[objective]*values[objective]
+
+    return f
+
+
+def scalarised_Qs(len_action_space, Q_state, w):
+    """
+    Scalarises the value of each Q(s,a) for a given state using a linear scalarisation function
+
+    :param Q_state: the different Q(s,a) for the state s, each with several components
+    :param w: the weight vector of the scalarisation function
+    :return: the scalarised value of each Q(s,a)
+    """
+
+    scalarised_Q = np.zeros(len_action_space)
+    for action in range(len(Q_state)):
+        scalarised_Q[action] = scalarisation_function(Q_state[action], w)
+
+    return scalarised_Q
+
+
+def lexicographic_Qs(action_space, Q_state):
+
+    chosen_action = -1
+
+    best_ethical_Q = np.max(scalarised_Qs(len(action_space), Q_state, only_ethical_matters))
+    best_individual_Q = -np.inf
+
+    for action in range(len(action_space)):
+        q_Individual = scalarisation_function(Q_state[action], only_individual_matters)
+        q_Ethical = scalarisation_function(Q_state[action], only_ethical_matters)
+        if q_Ethical == best_ethical_Q:
+            if q_Individual > best_individual_Q:
+                best_individual_Q = q_Individual
+                chosen_action = action
+
+    #print(chosen_action, best_individual_Q, best_ethical_Q, Q_state)
+    #print("----")
+
+    return best_individual_Q , best_ethical_Q, action_space[chosen_action]
+
+
+def evaluation(env, tabularRL, policies=0):
+
+    initial_state = env.reset()
+
+    states = list()
+    for ag in range(number_of_agents):
+        states.append(new_state(ag, initial_state[ag], tabularRL))
+
+    if policies == 0:
+        policies = list()
+        policies.append(policy_0)
+        policies.append(policy_1)
+
+    for t in range(2000):
+
+        env.render()
+
+
+
+        #actions = [policy_NULL[states[0]] for i in range(number_of_agents)]
+        #actions[agent] = policy[states[agent]]
+
+
+        actions = [policies[0][states[0]], policies[1][states[1]]]
+
+
+        nObservations, rewards, nDone, _ = env.step(actions)
+
+        print(states, actions)
+        print(rewards)
+
+        states = list()
+        for ag in range(number_of_agents):
+            states.append(new_state(ag, nObservations[ag], tabularRL))
+
+        print("--Time step", t, "--")
+
+
+
+def policy_creator(Q_function, action_space, mode="scalarisation", weights=[1.0 , 0.0]):
+
+    policy = np.zeros(len_state_space)
+
+    for state in range(len_state_space):
+
+        if mode == "scalarisation":
+            index = np.argmax(scalarised_Qs(len(action_space), Q_function[state][action_space], weights))
+            policy[state] = action_space[index]
+        elif mode == "lex":
+            _, _, policy[state] = lexicographic_Qs(action_space, Q_function[state][action_space])
+        else:
+            policy[state] = 6  # env.STAY
+
+
+    return policy
+
 
 
 

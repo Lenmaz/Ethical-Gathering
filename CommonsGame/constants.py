@@ -23,6 +23,8 @@ DID_NOTHING_BECAUSE_MANY_APPLES_REWARD = 0.0  # related with sustainability prob
 # Negative rewards
 TOO_MANY_APPLES_PUNISHMENT = -1.0  # related with sustainability probably
 SHOOTING_PUNISHMENT = -0.0
+HUNGER = -1.0
+LOST_APPLE = -0.0
 
 
 
