@@ -5,8 +5,8 @@ from constants import tinyMap, smallMap, bigMap
 numAgents = 2
 
 env = gym.make('CommonsGame:CommonsGame-v0', numAgents=numAgents, visualRadius=3, mapSketch=tinyMap,
-               fullState=False, tabularState=True, agent_pos=[[4, 1], [4, 1]])
-initial_state = env.reset(num_apples=1, common_pool=0)
+               fullState=False, tabularState=True, agent_pos=[[4, 1], [3, 1]])
+initial_state = env.reset(num_apples=0, common_pool=1)
 
 print(env.observation_space)
 
@@ -25,14 +25,15 @@ TAKE_DONATION = 9
 
 print(initial_state[0])
 
-for t in range(100):
 
+for t in range(100):
+    print("--Time step", t, "--")
     #nActions = np.random.randint(low=0, high=env.action_space.n, size=(numAgents,)).tolist()
-    nActions = [DONATE, TAKE_DONATION]
+    nActions = [TAKE_DONATION, TAKE_DONATION]
     nObservations, nRewards, nDone, nInfo = env.step(nActions)
 
-    print(nObservations[0], nRewards)
-    print("--Time step", t ,"--")
+    print(nActions, nObservations[0], nRewards)
+
     env.render()
 
 common_apples = 0

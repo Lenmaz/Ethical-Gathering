@@ -3,11 +3,11 @@ from constants import TOO_MANY_APPLES
 
 
 policy_NULL = np.load("policy_NULL.npy")
-policy_0 = np.load("policy_0.npy")
-policy_1 = np.load("policy_1.npy")
+#policy_0 = np.load("policy_0_i" + str(2) + ".npy")
+#policy_1 = np.load("policy_1_i" + str(2) + ".npy")
 
 number_of_agents = 2
-who_is_the_learning_agent = 0
+#who_is_the_learning_agent = 0
 number_of_objectives = 2
 
 only_ethical_matters = [0.0, 1.0]
@@ -37,7 +37,7 @@ if number_of_agents == 2:
 # for tinyMap
 positions_with_apples = [[2, 1], [2, 2], [3, 1]]
 agent_num_apples = [0, TOO_MANY_APPLES - 1, TOO_MANY_APPLES, TOO_MANY_APPLES + 1]
-common_pool_states = [0, 1, 2, number_of_agents*TOO_MANY_APPLES]
+common_pool_states = [0, 1, 2, TOO_MANY_APPLES*number_of_agents]
 
 apple_states = list()  # for this to work you need SUSTAINABILITY_MATTERS TRUE, which makes that no new apple appears
 for i in range(2):
@@ -103,8 +103,8 @@ def new_state(agent, state, tabularRL, forced_agent_apples=-1, forced_grass=[Fal
                     agents_y.append(forced_ag_pos[1])
             else:
                 for ag in range(number_of_agents):
-                    agents_x.append(state[-1 - 4 * number_of_agents + 4 * agent])
-                    agents_y.append(state[-4 * number_of_agents + 4 * agent])
+                    agents_x.append(state[-1 - 4 * number_of_agents + 4 * ag])
+                    agents_y.append(state[-4 * number_of_agents + 4 * ag])
 
             position = 0
 
@@ -113,36 +113,32 @@ def new_state(agent, state, tabularRL, forced_agent_apples=-1, forced_grass=[Fal
 
             # Obtain the agent's amount of apples, but we only consider four possible values
             if forced_agent_apples > -1:
-                agent_apples = forced_agent_apples
+                agent_temp_apples = forced_agent_apples
             else:
-
                 agent_temp_apples = state[1 - 4 * number_of_agents + 4 * agent]
-
-                if agent_temp_apples == 0:
-                    agent_apples = 0
-                elif agent_temp_apples < TOO_MANY_APPLES:
-                    agent_apples = 1
-                elif agent_temp_apples == TOO_MANY_APPLES:
-                    agent_apples = 2
-                else:
-                    agent_apples = 3
+            if agent_temp_apples == 0:
+                agent_apples = 0
+            elif agent_temp_apples < TOO_MANY_APPLES:
+                agent_apples = 1
+            elif agent_temp_apples == TOO_MANY_APPLES:
+                agent_apples = 2
+            else:
+                agent_apples = 3
 
             if forced_pool >= 0:
-                common_pool_apples = min(forced_pool, 3)
+                if forced_pool < TOO_MANY_APPLES*number_of_agents:
+                    common_pool_apples = min(forced_pool, 2)
+                else:
+                    common_pool_apples = 3
             else:
                 real_common_pool = state[-1]
 
-                if real_common_pool < TOO_MANY_APPLES*number_of_agents:
-                    common_pool_apples = min(state[-1], 2) #TODO: Very dependent of states definition
+                if forced_pool < TOO_MANY_APPLES*number_of_agents:
+                    common_pool_apples = min(real_common_pool, 2)
                 else:
-                    common_pool_apples = common_pool_max - 1
+                    common_pool_apples = 3
 
-
-
-            # Apple states, we know which ones they are in tinyMap, so we look for each of them if there is an apple:
-
-
-
+            # Apple states, we know which ones they are in tinyMap, so we look for each of them if there is an apple
             #apple_state_4 = int(state[6] == 64)
 
             if forced_grass[0]:
@@ -169,6 +165,14 @@ def new_state(agent, state, tabularRL, forced_agent_apples=-1, forced_grass=[Fal
     else:
         return state
 
+
+def check_agents_where_apples(state):
+
+    apple_pos_1 = int(state[1] > 64)
+    apple_pos_2 = int(state[2] > 64)
+    apple_pos_3 = int(state[5] > 64)
+
+    return apple_pos_1, apple_pos_2, apple_pos_3
 
 
 
@@ -199,6 +203,25 @@ def check_agent_apples_state(agent, state):
 def check_common_pool(state):
     return state[-1]
 
+
+def check_random_reward(state, actions):
+
+    everyone_took_donation = True
+    single_apple_in_pool = False
+
+    if check_common_pool(state) == 1:
+        single_apple_in_pool = True
+
+    for action in actions:
+        if action == 9:
+            everyone_took_donation *= True
+        else:
+            everyone_took_donation *= False
+
+    if everyone_took_donation and single_apple_in_pool:
+        return True
+    else:
+        return False
 
 def scalarisation_function(values, w):
     """
@@ -281,7 +304,7 @@ def evaluation(env, tabularRL, policies=0):
 
         nObservations, rewards, nDone, _ = env.step(actions)
 
-        print(states, actions)
+        print(states, actions, nObservations)
         print(rewards)
 
         states = list()

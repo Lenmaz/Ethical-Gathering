@@ -229,8 +229,8 @@ class AppleDrape(pythings.Drape):
         self.all_agents_deserve_apple = False
 
         self.common_pool = 0
-        self.common_pool_had_one_apple = False
         self.both_agents_took_donation = False
+        self.common_pool_at_beginning_state = -1
 
     def update(self, actions, board, layers, backdrop, things, the_plot):
         rewards = []
@@ -239,6 +239,9 @@ class AppleDrape(pythings.Drape):
 
         pos_x = [-9, -9]
         pos_y = [-9, -9]
+
+        self.common_pool_at_beginning_state = self.common_pool
+
         for i in range(len(self.agentChars)):
             pos_x[i] = things[self.agentChars[i]].position[0]
             pos_y[i] = things[self.agentChars[i]].position[1]
@@ -246,10 +249,15 @@ class AppleDrape(pythings.Drape):
         if pos_x[0] == pos_x[1] and pos_y[0] == pos_y[1]:
             agents_together = True
 
+        agent_winning = -1
+
         if len(self.agentChars) > 1:
             self.both_agents_took_donation = True
             for i in range(len(self.agentChars)):
                 self.both_agents_took_donation *= things[self.agentChars[i]].took_donation
+
+            if self.both_agents_took_donation:
+                agent_winning = np.random.randint(len(self.agentChars))
 
         agent_efficiencies = []
 
@@ -322,39 +330,43 @@ class AppleDrape(pythings.Drape):
             elif took_donation:
                 things[self.agentChars[i]].took_donation = False
 
-                apples_taken_in_ground = np.argwhere(np.logical_and(np.logical_xor(self.apples, self.curtain), agentsMap))
+                #apples_taken_in_ground = np.argwhere(np.logical_and(np.logical_xor(self.apples, self.curtain), agentsMap))
+                apples_left_in_ground = int(self.curtain[5, 4]) + int(self.curtain[5, 5]) + int(self.curtain[6, 4])
 
                 #if len(apples_taken_in_ground) < self.max_apples_in_ground: #you can only take donations if there are no apples left in ground
                 #if False:
                 #    took_donation = False
                 #else:
-                if self.common_pool > 0 or self.common_pool_had_one_apple:
-                    greedy = not hungry or len(apples_taken_in_ground) < self.max_apples_in_ground
 
-                    if self.common_pool > 0:
+                if self.common_pool > 0:
+                    greedy = not hungry #or apples_left_in_ground > 0
 
-                        if cannot_receive_yet:
-                            took_donation = False
-                        else:
-                            self.common_pool -= 1
 
-                        if self.common_pool == 0:
-                            self.common_pool_had_one_apple = True
+                    if self.common_pool == 1 and cannot_receive_yet:
+                        took_donation = False
 
-                    if self.common_pool == 0 and self.both_agents_took_donation:
-                        if self.common_pool_had_one_apple:
-                            if agent_efficiency == max(agent_efficiencies):
+
+                    if self.both_agents_took_donation:
+                        if self.common_pool_at_beginning_state == 1:
+                            #if agent_efficiency == max(agent_efficiencies):
+                            if i == agent_winning:
                                 things[self.agentChars[i]].has_apples += 1
-                                self.common_pool_had_one_apple = False
+                                self.common_pool -= 1
+                            #elif training_now:
+                            #    self.common_pool_had_one_apple = False
                             else:
                                 took_donation = False
-                        else:
-                            took_donation = False
+                        else: ##self.common_pool > 1
+                            things[self.agentChars[i]].has_apples += 1
+                            self.common_pool -= 1
+
+
+
 
                     else:
                         if not cannot_receive_yet:
                             things[self.agentChars[i]].has_apples += 1
-                            self.common_pool_had_one_apple = False
+                            self.common_pool -= 1
 
                 else:
                     took_donation = False  # To guarantee that it only receives reward if there are apples
@@ -366,7 +378,7 @@ class AppleDrape(pythings.Drape):
             else:
                 # The rewards takes into account if an apple has been gathered or if an apple has been donated
                 individual_reward = rew*APPLE_GATHERING_REWARD + took_donation*TOOK_DONATION_REWARD + hungry*HUNGER
-                ethical_reward = donation*DONATION_REWARD + shot*SHOOTING_PUNISHMENT + greedy*TOO_MANY_APPLES_PUNISHMENT + apple_lost*LOST_APPLE
+                ethical_reward = donation*DONATION_REWARD + shot*SHOOTING_PUNISHMENT + greedy*TOO_MANY_APPLES_PUNISHMENT #+ apple_lost*LOST_APPLE
                 sustain_reward = + not_stupid*DID_NOTHING_BECAUSE_MANY_APPLES_REWARD
 
                 # for Single_Objective you need: the_reward = individual_reward

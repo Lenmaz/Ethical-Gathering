@@ -4,13 +4,14 @@ TODO: Every time you modify constants.py you will need to reinstall the CommonsG
 Remember, with the terminal on the folder with setup.py, write:   pip install -e .
 Do not forget the dot
 """
+training_now = True
 
 # Environment logic altering!
 TIMEOUT_FRAMES = 25
 TOO_MANY_APPLES = 12
 AGENTS_CAN_GET_SICK = False
 AGENTS_HAVE_DIFFERENT_EFFICIENCY = True
-SUSTAINABILITY_MATTERS = False  # If False, apples ALWAYS regenerate
+SUSTAINABILITY_MATTERS = training_now  # If False, apples ALWAYS regenerate
 REGENERATION_PROBABILITY = 0.05  # Only matters if SUSTAINABILITY does not matter
 respawnProbs = [0.01, 0.05, 0.1]
 
