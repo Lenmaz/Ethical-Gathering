@@ -64,12 +64,12 @@ class CommonsGame(gym.Env):
 
         # Pycolab related setup:
         self._game = self.buildGame()
-        colourMap = dict([(a, (999, 0, 0)) for i, a in enumerate(agentChars)]  # Agents
+        colourMap = dict([(a, (999-4*i, 0, 4*i)) for i, a in enumerate(agentChars)]  # Agents
                          + [('=', (705, 705, 705))]  # Steel Impassable wall
                          + [(' ', (0, 0, 0))]  # Black background
                          + [('@', (0, 999, 0))]  # Green Apples
                          + [('.', (750, 750, 0))]  # Yellow beam
-                         + [('-', (200, 200, 200))])  # Grey scope
+                         + [('-', (0, 0, 0))])  # Grey scope
         self.obToImage = ObservationToArrayWithRGB(colour_mapping=colourMap)
 
     def buildGame(self, apples_yes_or_not=[True, True, True]):
@@ -80,7 +80,7 @@ class CommonsGame(gym.Env):
             self.gameField,
             what_lies_beneath=' ',
             sprites=dict(
-                [(a, ascii_art.Partial(PlayerSprite, self.agentChars, self.agent_pos)) for a in self.agentChars]),
+                [(a, ascii_art.Partial(PlayerSprite, self.agentChars, self.sightRadius, self.agent_pos)) for a in self.agentChars]),
             drapes={'@': ascii_art.Partial(AppleDrape, self.agentChars, self.numPadPixels, apples_yes_or_not),
                     '-': ascii_art.Partial(SightDrape, self.agentChars, self.numPadPixels),
                     '.': ascii_art.Partial(ShotDrape, self.agentChars, self.numPadPixels)},
@@ -98,15 +98,20 @@ class CommonsGame(gym.Env):
         nDone = [done] * self.numAgents
         return nObservations, nRewards, nDone, nInfo
 
-    def reset(self, num_apples=0, common_pool=0, apples_yes_or_not=[True, True, True]):
+    def reset(self, num_apples=[0], common_pool=0, apples_yes_or_not=[True, True, True]):
         # Reset the state of the environment to an initial state
         self._game = self.buildGame(apples_yes_or_not)
         ags = [self._game.things[c] for c in self.agentChars]
+
+
+
         for i, a in enumerate(ags):
             a.set_sickness(self.sick_probabilities[i])
             #a.set_efficiency(self.efficiency_probabilites[i]) #TODO: Not random efficiency
-            a.set_init_apples(num_apples) # all agents have the same amount of apples, why not?
-
+            if len(num_apples) == 1:
+                a.set_init_apples(num_apples[0]) # all agents have the same amount of apples, why not?
+            else:
+                a.set_init_apples(num_apples[i])
         self._game.things['@'].common_pool = common_pool
 
         self.state, _, _ = self._game.its_showtime()
@@ -125,12 +130,12 @@ class CommonsGame(gym.Env):
         ags = [self._game.things[c] for c in self.agentChars]
         plot_text = ""
         for i, agent in enumerate(ags):
-            plot_text += "Agent "+ str(i) + ": " + str(agent.has_apples) + ", "
+            plot_text += "Agent "+ str(i+1) + ": " + str(agent.has_apples) + ", "
         plot_text += "Common: " + str(self._game.things['@'].common_pool)
         plt.title(plot_text)
         plt.show(block=False)
         # plt.show()
-        plt.pause(.05)
+        plt.pause(0.05)
         plt.clf()
 
     def getObservation(self):
