@@ -1,374 +1,159 @@
 import numpy as np
 import gym
 
-from constants import tinyMap, smallMap, bigMap, TOO_MANY_APPLES, training_now, COMMON_POOL_HAS_LIMIT
+from constants import tinyMap, smallMap, bigMap, TOO_MANY_APPLES, COMMON_POOL_HAS_LIMIT
 from new_utils import *
+from CommonsGame.ValueIterationAuxiliar import probsV_calculator, create_model
+
+DONATE = 8
+TAKE_DONATION = 9
 
 
-def probsV_on_apples_in_ground(agent, V, state_prima, tabularRL, forced_agent_apples=-1, apples_in_ground=0, forced_pool=-1, original_state=-1):
-    """
+def sweep_preparations(state, agent, model):
+    original_state = model[state][6][6][:21]
+    if original_state[0] == 0:  # we skip states that actually do not exist
+        return False, [False], False
 
-    Computes the probability of moving from the current state to another state where
-    at least there is one apple in ground. It also computes its associated V(s').
+    there_is_an_apple = 0
+    if COMMON_POOL_LIMIT == 1:  # adaptations for the particular case in which the pool only has one apple
+        if original_state[-1] == 1 or original_state[-1] == 2:
+            return False, [False], False
 
-    If there are apples_in_ground, of course the probability is 100 %
+    if original_state[-1] == 5:
+        original_state[-1] = COMMON_POOL_LIMIT
 
-    """
-    next_state = new_state(agent, state_prima, tabularRL, forced_agent_apples, forced_pool=forced_pool)
+    for element in original_state:
+        if element == 64:
+            there_is_an_apple += 1
 
-    #try:
-    #    if new_state(0, original_state, tabularRL) == 5992:
-    #        print("heyyyy")
-    #        print(next_state)
-    #except:
-    #    pass
-    where_apples, where_agents = apples_in_ground
-    there_are_apples_in_ground = where_apples[0] or where_apples[1] or where_apples[2] # True or False
-    agents_are_where_apples = where_agents[0] or where_agents[1] or where_agents[2]
-
-    if there_are_apples_in_ground:
-        return V[next_state]
+    if agent == 0:
+        probs = [0.7, 0.3]
     else:
-        next_state_1 = new_state(agent, state_prima,  tabularRL, forced_agent_apples, forced_grass=[not where_agents[0], False, False], forced_pool=forced_pool)
-        next_state_2 = new_state(agent, state_prima,  tabularRL, forced_agent_apples, forced_grass=[False, not where_agents[1], False], forced_pool=forced_pool)
-        next_state_3 = new_state(agent, state_prima,  tabularRL, forced_agent_apples, forced_grass=[False, False, not where_agents[2]], forced_pool=forced_pool)
+        probs = [1.0]
 
-        return 0.85 * V[next_state] + 0.05 * V[next_state_1] + 0.05 * V[next_state_2] + 0.05 * V[next_state_3]
+    num_apples2 = 1
+
+    if check_common_pool(original_state) >= 2:
+        num_apples2 = TOO_MANY_APPLES
+        if agent == 1:
+            probs = [0.9, 0.1]
+    if check_common_pool(original_state) == COMMON_POOL_LIMIT:
+        num_apples2 = TOO_MANY_APPLES + 1
+
+    state_no_learn = new_state(agent, original_state, True, forced_agent_apples=num_apples2)
+    state_no_learn2 = new_state(agent, original_state, True, forced_agent_apples=TOO_MANY_APPLES + 1)
+
+    states_next = [state_no_learn, state_no_learn2]
+
+    return original_state, probs, states_next
 
 
-def probsV_on_agent_apples_auxiliar(agent, V, state_prima, tabularRL, forced_pool, apples_in_ground, agent_gains=True, forcing_apples=False, original_state=-1):
 
+def sweep_Q_function_with_model(model, agent, Q, V, action_space, mode, discount_factor, weights, equilibrium=[]):
     """
+    Calculates the value of applying each action to all states.
 
-    Auxiliar for the following method. This one is only used when in the transition,
-    the real number of apples of the agent has changed.
-
-    agent_gains = True if the real number of apples has increased, False if it has decreased
-
-    Notice that the if the number of apples has not changed, this method should not even be called.
-
-    """
-    if agent_gains:
-        next_agent_apples = TOO_MANY_APPLES
-    else:
-        next_agent_apples = 0
-
-    p = 0.1
-
-    if forcing_apples:
-        p = 0.05
-
-    probs = [1-p, p]
-    agent_apples = [TOO_MANY_APPLES - 1, next_agent_apples]
-
-    probsV_total = 0
-
-    for i in range(len(probs)):
-        addition = probs[i]*probsV_on_apples_in_ground(agent, V, state_prima, tabularRL, forced_agent_apples=agent_apples[i],
-                                          apples_in_ground=apples_in_ground, forced_pool=forced_pool, original_state=original_state)
-
-        probsV_total += addition
-        #if new_state(0, original_state, True) == 5992:
-        #    print(probs[i], agent_apples[i], addition)
-
-    return probsV_total
-
-
-def probsV_on_agent_apples(agent, V, original_state, state_prima, tabularRL, forced_pool_apples, apples_in_ground, forcing_next_apples=False):
-    """
-
-    Computes the probability of moving from a state where the agent has several apples (but neither 0 nor TOO_MANY)
-    from either a state where it has 0 apples (if the agent decides to donate)
-    or a state where it has TOO_MANY_APPLES (if the agent collects an apple)
-
-    and in either case it computes the corresponding V(s')
-
-    If the agent is in a different apple_state, of course the computation is trivial.
-
-    """
-    checks_agent_before = check_agent_apples_state(agent, original_state)
-
-    if forcing_next_apples:
-
-        V_A = probsV_on_apples_in_ground(agent, V, state_prima, tabularRL, forced_agent_apples=checks_agent_before,
-                                          apples_in_ground=apples_in_ground, forced_pool=forced_pool_apples)
-
-        if checks_agent_before != TOO_MANY_APPLES - 1:
-            V_B = probsV_on_apples_in_ground(agent, V, state_prima, tabularRL, forced_agent_apples=checks_agent_before+1,
-                                             apples_in_ground=apples_in_ground, forced_pool=forced_pool_apples)
-        else:
-            V_B = probsV_on_agent_apples_auxiliar(agent, V, state_prima, tabularRL, forced_pool=forced_pool_apples, apples_in_ground=apples_in_ground, agent_gains=True, forcing_apples=True, original_state=original_state)
-        return 0.5* V_A + 0.5 * V_B
-
-
-    checks_agent_after = check_agent_apples_state(agent, state_prima)
-
-    if 0 < checks_agent_before < TOO_MANY_APPLES:  # Y además estABA en el estado de s = tengo pocas manzanas
-
-        if checks_agent_before != checks_agent_after:
-
-            if checks_agent_before < checks_agent_after:  # +1 in apples
-                agent_gains = True
-            else:                                         # -1 in apples
-                agent_gains = False
-
-            return probsV_on_agent_apples_auxiliar(agent, V, state_prima, tabularRL, forced_pool=forced_pool_apples, apples_in_ground=apples_in_ground, agent_gains=agent_gains, original_state=original_state)
-
-    return probsV_on_apples_in_ground(agent, V, state_prima, tabularRL, forced_pool=forced_pool_apples, apples_in_ground=apples_in_ground)
-
-
-def probsV_apples_ground_and_agents(agent, V, original_state, state_prima, tabularRL, forced_pool_apples=-1, forcing_next_apples=False):
-    """
-
-    Fusion of the two previous methods. This one actually checks whether we are in a no-apples-in-ground state
-    and then redirects to the corresponding method that needs to be applied.
-
-    """
-    checks1 = check_apples_state(original_state)
-    checks2 = check_agents_where_apples(original_state)
-
-    return probsV_on_agent_apples(agent, V, original_state, state_prima, tabularRL, forced_pool_apples=forced_pool_apples, apples_in_ground=[checks1, checks2], forcing_next_apples=forcing_next_apples)
-
-
-def probsV_calculator(agent, action, V, original_state, state_prima, tabularRL, forcing_next_apples=False):
-    """
-
-    We include in the previous method the checking of whether the common pool is in the state 2
-    (i.e., more than 1 apple, but less than 24 apples) and we also check if the agents
-    have decided to donate to the common pool.
-
-    We compute the probability of the next state and its associated V(s').
-    """
-
-    if COMMON_POOL_HAS_LIMIT:
-        apples_in_pool = check_common_pool(original_state)
-
-        if apples_in_pool == 2:
-            if action == 8:
-                # There are between 24 and two apples in the pool and the agent donated an apple
-                # So 95% chance that the next state is the same
-                p = 1.0 / (common_pool_states[-1] - 2.0)
-
-                probs = [1 - p, p]
-                pool_apples = [2, common_pool_states[-1]]
-
-                probsV_total = 0
-
-                for i in range(len(probs)):
-                    probsV_total += probs[i] * probsV_apples_ground_and_agents(agent, V, original_state, state_prima, tabularRL,
-                                                                               forced_pool_apples=pool_apples[i])
-
-                return probsV_total
-            elif action == 9:
-                # There are between 24 and two apples in the pool and the agent took an apple from the pool
-                # So 95% chance that the next state is the same
-                p = 1.0 / (common_pool_states[-1] - 2.0)
-
-                probs = [1 - p, p]
-                pool_apples = [2, 1]
-
-                probsV_total = 0
-
-                for i in range(len(probs)):
-                    probsV_total += probs[i] * probsV_apples_ground_and_agents(agent, V, original_state, state_prima, tabularRL,
-                                                                               forced_pool_apples=pool_apples[i])
-
-                return probsV_total
-
-        #TODO: Decide what to do with this
-        elif False: #apples_in_pool == TOO_MANY_APPLES * number_of_agents:
-            if action == 9:
-
-                # There are 24 apples or more in the pool and the agent took an apple from the pool
-                # So 95% chance that the next state is the same
-                p = 1.0 / (common_pool_states[-1] - 2.0)
-
-                probs = [1 - p, p]
-                pool_apples = [common_pool_states[-1], 2]
-
-                probsV_total = 0
-
-                for i in range(len(probs)):
-                    probsV_total += probs[i] * probsV_apples_ground_and_agents(agent, V, original_state, state_prima, tabularRL,
-                                                                               forced_pool_apples=pool_apples[i])
-
-                return probsV_total
-
-    return probsV_apples_ground_and_agents(agent, V, original_state, state_prima, tabularRL, forcing_next_apples=forcing_next_apples)
-
-
-
-
-def create_model(agent):
-
-    state_count = 0
-
-    model = {}
-
-    for ag_pos in agent_positions:
-
-        for ap_state in apple_states:
-
-            if check_redundant_states(positions_with_apples, ag_pos, ap_state):
-                continue
-
-            for n_apples in agent_num_apples:
-
-                for c_state in common_pool_states:
-
-
-                    state_count += 1
-
-                    env = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap,
-                                   visualRadius=3, fullState=False, tabularState=tabularRL, agent_pos=ag_pos)
-                    original_state = env.reset(num_apples=n_apples, common_pool=c_state, apples_yes_or_not=ap_state)
-
-                    model[original_state[agent]] = {}
-
-
-                    for action in action_space:
-                        env = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap,
-                                       visualRadius=3, fullState=False, tabularState=tabularRL, agent_pos=ag_pos)
-                        original_state = env.reset(num_apples=n_apples, common_pool=c_state, apples_yes_or_not=ap_state)
-
-                        state = new_state(agent, original_state[agent], tabularRL)
-
-                        actions = [policy_0[state], policy_1[state]]
-                        actions[agent] = action
-
-                        nObservations, nRewards, _, _ = env.step(actions)
-
-                        model[original_state][action] = [nObservations[agent], nRewards[agent]]
-
-    return model
-
-
-def sweep_Q_function_with_model(agent, model, Q, V, action_space, mode, discount_factor, weights):
-    """
-    TODO: Adapt
-    Calculates the value of applying each action to a given state. Heavily adapted to the public civility game
-
-    :param env: the environment of the Markov Decision Process
+    :param model: the environment of the Markov Decision Process
     :param state: the current state
     :param V: value function to see the value of the next state V(s')
     :param discount_factor: discount factor considered, a real number
-    :return: the value obtained for each action
+    :return: Q-table, V-table, delta to indicate how much V has changed from the previous sweep
     """
 
     state_count = 0
+    delta = 0
 
-    for original_state in model:
+    target_policies = list()
+
+    if len(equilibrium) > 0:
+        target_policies = equilibrium
+    else:
+        target_policies = reference_policy
+
+
+
+    for state in range(len_state_space):
 
         state_count += 1
 
-        if state_count % 100 == 0:
+        if state_count % 1000 == 0:
             print("States swept :", state_count, "/", len_state_space + 1)
 
-        for action in model[original_state]:
+        original_state, probs, states_now = sweep_preparations(state, agent, model)
 
-                state = new_state(agent, original_state[agent], tabularRL)
-                state_prima, reward = model[original_state][action]
+        if not probs[0]:  # occurs when the state where are now does not actually exist
+            continue
 
+        for action in action_space:
 
-                V_prima = probsV_calculator(agent, action, V[agent], original_state, state_prima, tabularRL)
+            V_prima = 0
 
-                Q[agent][state][action] = reward + discount_factor * V_prima
-
-
-                # Update V
-                #for agent in range(number_of_agents):
-                if mode == "lex":
-                    V_ind, V_eth, _ = lexicographic_Qs(action_space, Q[agent][state][action_space])
-                    V[agent][state] = np.array([V_ind, V_eth])
-                elif mode == "scalarisation":
-                    index = np.argmax(scalarised_Qs(len(action_space), Q[agent][state][action_space], weights))
-                    V[agent][state] = Q[agent][state][action_space[index]]
-    return Q, V
+            for i in range(len(probs)):
+                actions = [int(target_policies[0][states_now[0]]), int(target_policies[1][states_now[i]])]
 
 
+                if agent == 1:
+                    if actions[0] == 8:
+                        actions[0] = 6  # to create a more accurate model, Agent 0 barely donates due to a lack of opportunities
 
-def sweep_Q_function(agent, Q, V, action_space, mode, discount_factor, weights):
-    """
-    TODO: Adapt
-    Calculates the value of applying each action to a given state. Heavily adapted to the public civility game
+                actions[agent] = action
 
-    :param env: the environment of the Markov Decision Process
-    :param state: the current state
-    :param V: value function to see the value of the next state V(s')
-    :param discount_factor: discount factor considered, a real number
-    :return: the value obtained for each action
-    """
+                # Apply actions to model
+                output = model[state][actions[0]][actions[1]]
 
-    state_count = 0
-
-    for ag_pos in agent_positions:
-
-        for ap_state in apple_states:
-
-            if check_redundant_states(positions_with_apples, ag_pos, ap_state):
-                continue
-
-            for n_apples in agent_num_apples:
-
-                for c_state in common_pool_states:
-
-                    state_count += 1
-
-                    if state_count % 100 == 0:
-                        print("States swept :", state_count, "/", len_state_space + 1)
+                # We start decomposing the different elements of the output
+                state_prima = output[:21]
 
 
-                    for action in action_space:
+                rewards = [0, 0]
+                rewards[0] = output[21:23]
+                rewards[1] = output[23:25]
 
-                        env = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap,
-                                       visualRadius=3, fullState=False, tabularState=tabularRL, agent_pos=ag_pos)
-                        original_state = env.reset(num_apples=n_apples, common_pool=c_state, apples_yes_or_not=ap_state)
+                if COMMON_POOL_LIMIT == 1:  # only for the case when the COMMON_POOL has 1 apple of capacity
+                    if state_prima[-1] > 1:
+                        state_prima[-1] = 1
+                        if rewards[agent][1] > 0 and original_state[-1] == 0:
+                            rewards[agent][1] = 0
 
-
-                        state = new_state(agent, original_state[agent], tabularRL)
-
-                        actions = [policy_0[state], policy_1[state]]
-                        actions[agent] = action
-
-                        nObservations, nRewards, _, _ = env.step(actions)
-
-                        #for agent in range(number_of_agents):
-
-                        reward = nRewards[agent]
-
-                        if not check_random_reward(original_state[agent], actions):
-                            V_prima = probsV_calculator(agent, actions[agent], V[agent], original_state[agent], nObservations[agent], tabularRL)
-
-                            Q[agent][state][action] = reward + discount_factor * V_prima
-                        else:
-
-                            V_prima = probsV_calculator(agent, actions[agent], V[agent], original_state[agent],
-                                                        nObservations[agent], tabularRL, forcing_next_apples=True)
-
-                            Q[agent][state][action] = np.array([-0.5, reward[1]]) + discount_factor * V_prima
-
-                        if state == 9687:
-                            print(state, original_state[agent], new_state(1, nObservations[agent], True), actions, reward, V_prima, nObservations[agent])
+                reward = rewards[agent]
 
 
-                    if state == 9687:
-                        print("conflictive state hmm", original_state[agent], Q[agent][state])
-                        print("---")
+                V_prima += probs[i]*probsV_calculator(mode, agent, actions, Q[agent], V[agent], original_state, state_prima, True, action_space)
 
 
-    # Update V
-    #for agent in range(number_of_agents):
-    for state in range(len_state_space):
+            Q[agent][state][action] = reward + discount_factor * V_prima
+
+
         if mode == "lex":
             V_ind, V_eth, _ = lexicographic_Qs(action_space, Q[agent][state][action_space])
+
+            delta = max(delta, np.abs(
+                scalarisation_function([V_ind, V_eth], [1.0, 10.0]) - scalarisation_function(V[agent][state],
+                                                                                             [1.0, 10.0])))
+
             V[agent][state] = np.array([V_ind, V_eth])
+
+
         elif mode == "scalarisation":
             index = np.argmax(scalarised_Qs(len(action_space), Q[agent][state][action_space], weights))
-            V[agent][state] = Q[agent][state][action_space[index]]
-    return Q, V
+            best_action_value = Q[agent][state][action_space[index]]
+
+            delta = max(delta, np.abs(
+                scalarisation_function(best_action_value, weights) - scalarisation_function(V[agent][state],
+                                                                                            weights)))
+
+            V[agent][state] = best_action_value
+        else:
+            print("Fatal error. Mode not recognised.")
+            return -1
 
 
-def value_iteration(tabularRL, agent, mode="lex", discount_factor=0.8, weights=[1.0, 0.0], num_iterations=3):
+    return Q, V, delta
+
+
+
+
+def value_iteration(agent, mode="scalarisation", discount_factor=0.8, weights=[1.0, 0.0], num_iterations=20, tabularRL = True, equilibrium=[]):
     """
     Adapted for VI
 
@@ -377,59 +162,62 @@ def value_iteration(tabularRL, agent, mode="lex", discount_factor=0.8, weights=[
     :return:
     """
 
-    environment = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL)
+    try:
+        model = np.load("model.npy")
+    except:
+        print("There was no model of the environment found. Proceeding to create one.")
+        print("This while take a while (approx 50 minutes).")
+        create_model()
+        model = np.load("model.npy")
 
+    environment = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL)
     total_action_space = [i for i in range(environment.action_space.n)]
     action_space = new_action_space(total_action_space, environment)
 
     Q_functions = np.zeros((number_of_agents, len_state_space, environment.action_space.n, number_of_objectives))
     V_functions = np.zeros((number_of_agents, len_state_space, number_of_objectives))
-    for episode in range(num_iterations):
-        print(episode)
-        Q_functions, V_functions = sweep_Q_function(agent, Q_functions, V_functions, action_space, mode, discount_factor, weights)
 
+    iterations = 0
+
+    while iterations < num_iterations:
+        print("Iteration : ", iterations, " / ", num_iterations)
+        iterations += 1
+
+        Q_functions, V_functions, delta = sweep_Q_function_with_model(model, agent, Q_functions, V_functions, action_space, mode, discount_factor, weights)
+        print("Delta : ", delta)
     return Q_functions, V_functions
 
 
 if __name__ == '__main__':
     tabularRL = True
-    weights = [1.0, 0.0]
-    mode = "lex"
+    training_now = False
+    mode = "scalarisation"
+    policy_folder = "policies/"
 
-    environment = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL)
-
-    total_action_space = [i for i in range(environment.action_space.n)]
-    action_space = new_action_space(total_action_space, environment)
+    ethical_weight = 2.6
+    weights = [1.0, ethical_weight]
 
     if training_now:
-        for iteration in [0,1,2]:
 
-            if iteration == 0:
-                policy_0 = np.load("policy_NULL.npy")
-                policy_1 = np.load("policy_NULL.npy")
-            else:
-                policy_0 = np.load("policy_0_i" + str(iteration - 1) + ".npy")
-                policy_1 = np.load("policy_1_i" + str(iteration - 1) + ".npy")
+        environment = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL)
 
-            for learner in [0, 1]:
+        total_action_space = [i for i in range(environment.action_space.n)]
+        action_space = new_action_space(total_action_space, environment)
 
+        for learner in [0, 1]:
 
+            Q_functions, V_functions = value_iteration(learner, mode=mode, weights=weights)
 
-                Q_functions, V_functions = value_iteration(tabularRL, learner, mode=mode, weights=weights)
-                np.save("Q_func.npy", Q_functions[learner])
-                np.save("V_func.npy", V_functions[learner])
-                Q_function = np.load("Q_func.npy")
-                policy = policy_creator(Q_function, action_space, mode=mode, weights=weights)
-                np.save("policy_"+str(learner)+"_i"+str(iteration)+".npy", policy)
+            policy = policy_creator(Q_functions[learner], action_space, mode=mode, weights=weights)
+            np.save(policy_folder + "policy"+str(learner)+"_C" + str(COMMON_POOL_LIMIT) + "_" + str(weights[1]) + ".npy", policy)
 
-    policy = np.load("policy_NULL.npy")
+    if not training_now:
 
-    env = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL, agent_pos=[[2, 0],[4, 0]])
-    evaluation(env, tabularRL)
+        what = "_"+str(weights[1])
 
-    #V = np.load("V_func.npy")
-    #for pos in agent_positions:
-    #    state = new_state(0, [0], True, forced_agent_apples=0, forced_grass=[True, True, True], forced_ag_pos=pos)
-    #    print(pos)
-    #    print(V[state])
-    #    print("--------")
+        policy0 = np.load(policy_folder+"policy0_C" + str(COMMON_POOL_LIMIT) + what + ".npy")
+        policy1 = np.load(policy_folder+"policy1_C" + str(COMMON_POOL_LIMIT) + what + ".npy")
+
+        env = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL, agent_pos=[[3, 0], [3, 3]])
+
+        evaluation(env, tabularRL, we_render=True, policies=[policy0, policy1], how_much=400)

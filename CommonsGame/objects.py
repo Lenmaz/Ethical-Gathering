@@ -7,7 +7,7 @@ from CommonsGame.constants import *
 
 
 class PlayerSprite(sprites.MazeWalker):
-    def __init__(self, corner, position, character, agentChars, forced_pos=[]):
+    def __init__(self, corner, position, character, agentChars, sightRadius, forced_pos=[]):
         super(PlayerSprite, self).__init__(
             corner, position, character, impassable=['='] #+ list(agentChars.replace(character, ''))
             ,confined_to_board=True)
@@ -20,7 +20,7 @@ class PlayerSprite(sprites.MazeWalker):
             else:
                 this_forced_pos = forced_pos[ord(character) - 65]
             self.initPos = this_forced_pos
-            self._teleport((int(this_forced_pos[0] + 3), int(this_forced_pos[1] + 3)))  #TODO: +3 RELATED WITH SIGHTRADIUS
+            self._teleport((int(this_forced_pos[0] + sightRadius), int(this_forced_pos[1] + sightRadius)))  #TODO: +3 RELATED WITH SIGHTRADIUS
         else:
             self.initPos = position
 
@@ -266,9 +266,15 @@ class AppleDrape(pythings.Drape):
                 agent_efficiencies.append(things[self.agentChars[i]].efficiency) # The number of apples it can collect on each turn
 
         cannot_receive_yet = False #only when the common pool had 0 apples, one agent donates and the other tries to take it in the same turn
+        cannot_donate_yet = False
+
+        #print(self.common_pool)
 
 
         for i in range(len(self.agentChars)):
+
+            if COMMON_POOL_HAS_LIMIT and self.common_pool >= COMMON_POOL_LIMIT:
+                cannot_donate_yet = True
 
             agent_efficiency = things[self.agentChars[i]].efficiency # The number of apples it can collect on each turn
 
@@ -294,13 +300,6 @@ class AppleDrape(pythings.Drape):
                     self.curtain[things[self.agentChars[i]].position[0], things[self.agentChars[i]].position[1]] = False
                     things[self.agentChars[i]].has_apples += 1
 
-
-            #elif things[self.agentChars[i]].did_nothing:
-            #    not_stupid = things[self.agentChars[i]].has_apples > TOO_MANY_APPLES
-            #    things[self.agentChars[i]].did_nothing = False
-            #else:
-            #    things[self.agentChars[i]].did_nothing = False
-
             donation = things[self.agentChars[i]].has_donated
             took_donation = things[self.agentChars[i]].took_donation
             shot = things[self.agentChars[i]].has_shot
@@ -310,16 +309,14 @@ class AppleDrape(pythings.Drape):
 
                     donation = False   ## If the agent itself doesn't have enough apples, it isn't a donation, it's more like an extortion
 
-                    if things[self.agentChars[i]].has_apples == TOO_MANY_APPLES:
 
-                        apple_lost = True
-
-                if COMMON_POOL_HAS_LIMIT and self.common_pool >= TOO_MANY_APPLES*len(self.agentChars):
+                if cannot_donate_yet:
                     donation = False ## No ethical reward if the common pool already has a lot of apples
                     things[self.agentChars[i]].has_donated = False
                 else:
                     things[self.agentChars[i]].has_donated = False
                     things[self.agentChars[i]].has_apples -= 1
+                    apple_lost = True
                     things[self.agentChars[i]].donated_apples += 1
                     self.common_pool += 1
 
@@ -330,44 +327,30 @@ class AppleDrape(pythings.Drape):
             elif took_donation:
                 things[self.agentChars[i]].took_donation = False
 
-                #apples_taken_in_ground = np.argwhere(np.logical_and(np.logical_xor(self.apples, self.curtain), agentsMap))
-                apples_left_in_ground = int(self.curtain[5, 4]) + int(self.curtain[5, 5]) + int(self.curtain[6, 4])
-
-                #if len(apples_taken_in_ground) < self.max_apples_in_ground: #you can only take donations if there are no apples left in ground
-                #if False:
-                #    took_donation = False
-                #else:
-
                 if self.common_pool > 0:
-                    greedy = not hungry #or apples_left_in_ground > 0
-
+                    greedy = not hungry
 
                     if self.common_pool == 1 and cannot_receive_yet:
                         took_donation = False
 
-
                     if self.both_agents_took_donation:
                         if self.common_pool_at_beginning_state == 1:
-                            #if agent_efficiency == max(agent_efficiencies):
                             if i == agent_winning:
                                 things[self.agentChars[i]].has_apples += 1
                                 self.common_pool -= 1
-                            #elif training_now:
-                            #    self.common_pool_had_one_apple = False
                             else:
                                 took_donation = False
-                        else: ##self.common_pool > 1
+                        else:
                             things[self.agentChars[i]].has_apples += 1
                             self.common_pool -= 1
-
-
-
 
                     else:
                         if not cannot_receive_yet:
                             things[self.agentChars[i]].has_apples += 1
                             self.common_pool -= 1
 
+                elif self.common_pool_at_beginning_state == 1:
+                    greedy = not hungry
                 else:
                     took_donation = False  # To guarantee that it only receives reward if there are apples
             elif shot:
@@ -377,8 +360,8 @@ class AppleDrape(pythings.Drape):
                 rewards.append(0)
             else:
                 # The rewards takes into account if an apple has been gathered or if an apple has been donated
-                individual_reward = rew*APPLE_GATHERING_REWARD + took_donation*TOOK_DONATION_REWARD + hungry*HUNGER
-                ethical_reward = donation*DONATION_REWARD + shot*SHOOTING_PUNISHMENT + greedy*TOO_MANY_APPLES_PUNISHMENT #+ apple_lost*LOST_APPLE
+                individual_reward = rew*APPLE_GATHERING_REWARD + took_donation*TOOK_DONATION_REWARD + hungry*HUNGER + apple_lost*LOST_APPLE
+                ethical_reward = donation*DONATION_REWARD + shot*SHOOTING_PUNISHMENT + greedy*TOO_MANY_APPLES_PUNISHMENT
                 sustain_reward = + not_stupid*DID_NOTHING_BECAUSE_MANY_APPLES_REWARD
 
                 # for Single_Objective you need: the_reward = individual_reward
@@ -412,7 +395,7 @@ class AppleDrape(pythings.Drape):
         y_agent = self.numPadPixels + 1
 
         for agent in ags:
-            if agent.has_apples > 1:
+            if agent.has_apples >= TOO_MANY_APPLES:
                 self.apples[x_agent, y_agent + 3*num_agent] = True
                 self.curtain[x_agent, y_agent + 3*num_agent] = True
 
@@ -437,11 +420,12 @@ class AppleDrape(pythings.Drape):
 
 
         for i, j in appleIdxs:
-            if SUSTAINABILITY_MATTERS:
+            if CREATING_MODEL:
                 pass
-                #self.curtain[i, j] = np.random.choice([True, False],
-                #                                  p=[probs[i - self.numPadPixels - 1, j - self.numPadPixels - 1],
-                #                                     1 - probs[i - self.numPadPixels - 1, j - self.numPadPixels - 1]])
+            elif SUSTAINABILITY_MATTERS:
+                self.curtain[i, j] = np.random.choice([True, False],
+                                                  p=[probs[i - self.numPadPixels - 1, j - self.numPadPixels - 1],
+                                                     1 - probs[i - self.numPadPixels - 1, j - self.numPadPixels - 1]])
 
             else:
                 self.curtain[i, j] = np.random.choice([True, False], p=[REGENERATION_PROBABILITY, 1-REGENERATION_PROBABILITY])

@@ -1,13 +1,18 @@
 import numpy as np
-from constants import TOO_MANY_APPLES, COMMON_POOL_HAS_LIMIT
+from constants import TOO_MANY_APPLES, COMMON_POOL_HAS_LIMIT, COMMON_POOL_LIMIT
 
+policy_folder = "policies/"
+policy_NULL = np.load(policy_folder+"policy_NULL.npy")
+try:
+    policy_0 = np.load(policy_folder+"ref_policy0_C5.npy")
+    policy_1 = np.load(policy_folder+"ref_policy1_C5.npy")
+except:
+    policy_0 = policy_NULL
+    policy_1 = policy_NULL
 
-policy_NULL = np.load("policy_NULL.npy")
-#policy_0 = np.load("policy_0_i" + str(3) + ".npy")
-#policy_1 = np.load("policy_1_i" + str(3) + ".npy")
+reference_policy = [policy_0, policy_1]
 
 number_of_agents = 2
-#who_is_the_learning_agent = 0
 number_of_objectives = 2
 
 only_ethical_matters = [0.0, 1.0]
@@ -38,7 +43,7 @@ if number_of_agents == 2:
 positions_with_apples = [[2, 1], [2, 2], [3, 1]]
 agent_num_apples = [0, TOO_MANY_APPLES - 1, TOO_MANY_APPLES, TOO_MANY_APPLES + 1]
 if COMMON_POOL_HAS_LIMIT:
-    common_pool_states = [0, 1, 2, TOO_MANY_APPLES*number_of_agents]
+    common_pool_states = [0, 1, 2, COMMON_POOL_LIMIT]
 else:
     common_pool_states = [0, 1, 2]
 
@@ -57,30 +62,26 @@ common_pool_max = len(common_pool_states)
 len_state_space = n_agent_cells*n_apples*apples_in_ground*common_pool_max + 1  # You need to change this!!! This is provisional and only works for tinyMap
 
 
-print("State space: ", len_state_space)
-
 def new_action_space(action_space, env):
     """
-        TODO:  Modify this method if you want to limit the action space of the agents. This method
+        Modify this method if you want to limit the action space of the agents. This method
         is specially important if you are using Tabular RL
 
     :param action_space: a list of integers
     :return: a new list of integers, smaller or equal
     """
 
-
-
-    # Example: To remove the possibility of shooting, do
     action_space.remove(env.SHOOT)
     action_space.remove(env.TURN_CLOCKWISE)
     action_space.remove(env.TURN_COUNTERCLOCKWISE)
+
 
     return action_space
 
 
 def new_state(agent, state, tabularRL, forced_agent_apples=-1, forced_grass=[False, False, False], forced_ag_pos=[], forced_pool=-1):
     """
-    TODO: Modify the state (if you are using Tabular RL) to simplify it so it can be useful to the agent
+    Modify the state (if you are using Tabular RL) to simplify it so it can be useful to the agent
     Ideally you will be able to create a map from every state to a different integer number
     :param agent: an integer to know which agent it is
     :param state: a list of integers
@@ -89,7 +90,6 @@ def new_state(agent, state, tabularRL, forced_agent_apples=-1, forced_grass=[Fal
     """
 
     if tabularRL:
-        # Provisionally you have a very basic encoding, very hard-coded for tinyMap:
 
         if len(state) == 0:
             return len_state_space
@@ -102,8 +102,8 @@ def new_state(agent, state, tabularRL, forced_agent_apples=-1, forced_grass=[Fal
             if len(forced_ag_pos) > 0:
 
                 for ag in range(number_of_agents):
-                    agents_x.append(forced_ag_pos[0])
-                    agents_y.append(forced_ag_pos[1])
+                    agents_x.append(forced_ag_pos[ag][0] - 2)
+                    agents_y.append(forced_ag_pos[ag][1])
             else:
                 for ag in range(number_of_agents):
                     agents_x.append(state[-1 - 4 * number_of_agents + 4 * ag])
@@ -139,11 +139,9 @@ def new_state(agent, state, tabularRL, forced_agent_apples=-1, forced_grass=[Fal
 
                 if real_common_pool < common_pool_states[-1] or not COMMON_POOL_HAS_LIMIT:
                     common_pool_apples = min(real_common_pool, 2)
+
                 else:
                     common_pool_apples = 3
-
-            # Apple states, we know which ones they are in tinyMap, so we look for each of them if there is an apple
-            #apple_state_4 = int(state[6] == 64)
 
             if forced_grass[0]:
                 apple_state_1 = 1
@@ -160,9 +158,8 @@ def new_state(agent, state, tabularRL, forced_agent_apples=-1, forced_grass=[Fal
             else:
                 apple_state_3 = int(state[5] == 64)
 
-            where_apples = apple_state_1 + 2*(apple_state_2 + 2*(apple_state_3))# + 2*apple_state_4)) # we encode them as a scalar, 8 different values
+            where_apples = apple_state_1 + 2*(apple_state_2 + 2*apple_state_3)
 
-            # Total number of states: 16x6x8x6 = 4608 states (+1 if we count the state of being ill)
             position_and_apples = position + n_agent_cells*(agent_apples + n_apples*(where_apples + apples_in_ground*common_pool_apples))
 
             return int(position_and_apples)
@@ -170,31 +167,62 @@ def new_state(agent, state, tabularRL, forced_agent_apples=-1, forced_grass=[Fal
         return state
 
 
-def check_agents_where_apples(state):
+def check_agents_where_apples(state, agent):
 
-    apple_pos_1 = int(state[1] > 64)
-    apple_pos_2 = int(state[2] > 64)
-    apple_pos_3 = int(state[5] > 64)
+    ags_pos = check_agents_positions(state)
+
+    if ags_pos[0][0] == ags_pos[1][0] and ags_pos[0][1] == ags_pos[1][1]:
+        apple_pos_1 = int(state[1] > 64)
+        apple_pos_2 = int(state[2] > 64)
+        apple_pos_3 = int(state[5] > 64)
+    else:
+        apple_pos_1 = int(state[1] == 64 + 1 + agent)
+        apple_pos_2 = int(state[2] == 64 + 1 + agent)
+        apple_pos_3 = int(state[5] == 64 + 1 + agent)
 
     return apple_pos_1, apple_pos_2, apple_pos_3
 
+
+def get_interesting_data(state):
+
+    agents_apples = np.zeros(number_of_agents)
+    agents_donated_apples = np.zeros(number_of_agents)
+    for ag in range(number_of_agents):
+        agents_apples[ag] = state[1 - 4 * number_of_agents + 4 * ag]
+        agents_donated_apples[ag] = state[1 - 4 * number_of_agents + 4 * ag + 1]
+
+    common_pool_apples = state[-1]
+
+    return agents_apples, agents_donated_apples, common_pool_apples
 
 
 def check_redundant_states(positions_with_apples, agents_positions, ap_state):
 
     for n in range(len(positions_with_apples)):
         for ag_pos in agents_positions:
-            if ag_pos == positions_with_apples[n]: #comprobamos que la posición del agente es una posición donde crecen manzanas
-                if ap_state[n]: #comprobamos que esa posición "n" actualmente tiene una manzana
+            if ag_pos == positions_with_apples[n]:
+                if ap_state[n]:
                     return True
 
     return False
 
+def check_agents_positions(state):
+    ag_0_pos = state[-1 - 4 * number_of_agents + 4 * 0: +1 - 4 * number_of_agents + 4 * 0]
+    ag_1_pos = state[-1 - 4 * number_of_agents + 4 * 1: +1 - 4 * number_of_agents + 4 * 1]
+
+    return ag_0_pos, ag_1_pos
 
 def check_apples_state(state):
     apple_state_1 = state[1] == 64
     apple_state_2 = state[2] == 64
     apple_state_3 = state[5] == 64
+
+    return apple_state_1, apple_state_2, apple_state_3
+
+def check_what_in_apples_state(state):
+    apple_state_1 = state[1]
+    apple_state_2 = state[2]
+    apple_state_3 = state[5]
 
     return apple_state_1, apple_state_2, apple_state_3
 
@@ -269,7 +297,7 @@ def lexicographic_Qs(action_space, Q_state):
     for action in range(len(action_space)):
         q_Individual = scalarisation_function(Q_state[action], only_individual_matters)
         q_Ethical = scalarisation_function(Q_state[action], only_ethical_matters)
-        if q_Ethical == best_ethical_Q:
+        if best_ethical_Q - q_Ethical <= 0.00001:
             if q_Individual > best_individual_Q:
                 best_individual_Q = q_Individual
                 chosen_action = action
@@ -280,9 +308,13 @@ def lexicographic_Qs(action_space, Q_state):
     return best_individual_Q , best_ethical_Q, action_space[chosen_action]
 
 
-def evaluation(env, tabularRL, policies=0):
+def evaluation(env, tabularRL, policies=0, we_render=True, it=0, how_much=400, randomness=True):
+    initial_state = env.reset(num_apples=[0, 0], common_pool=0)
 
-    initial_state = env.reset()
+    ags_apples_evolution = [[], []]
+    ags_donation_evolution = [[], []]
+    pool_evolution = []
+    next_random = False
 
     states = list()
     for ag in range(number_of_agents):
@@ -293,31 +325,62 @@ def evaluation(env, tabularRL, policies=0):
         policies.append(policy_0)
         policies.append(policy_1)
 
-    for t in range(2000):
+    previous_agent_apples = [0, 0]
+    previous_state = states
+    for t in range(how_much):
 
-        env.render()
-
-
-
-        #actions = [policy_NULL[states[0]] for i in range(number_of_agents)]
-        #actions[agent] = policy[states[agent]]
-
+        if we_render:
+            env.render()
 
         actions = [policies[0][states[0]], policies[1][states[1]]]
 
+        if randomness:
+            if next_random:
+                actions = [np.random.randint(0, 4), np.random.randint(0, 4)]
+                next_random = False
 
         nObservations, rewards, nDone, _ = env.step(actions)
 
-        print(states, actions, nObservations)
-        print(rewards)
 
         states = list()
         for ag in range(number_of_agents):
             states.append(new_state(ag, nObservations[ag], tabularRL))
 
-        print("--Time step", t, "--")
+        if randomness:
+
+            if states[0] == previous_state[0] and states[1] == previous_state[1]:
+                apples_available = check_what_in_apples_state(nObservations[0])
+                if apples_available[0] > 63 and apples_available[1] > 63 and apples_available[2] > 63:
+                    next_random = True
+
+        previous_state = states
+
+        agents_apples, agents_donated_apples, common_pool_apples = get_interesting_data(nObservations[0])
+
+        for ag in range(number_of_agents):
+            ags_apples_evolution[ag].append(agents_apples[ag])
+
+            if len(ags_donation_evolution[ag]) > 0:
+                donation_appendable = ags_donation_evolution[ag][-1]
+            else:
+                donation_appendable = 0
+
+            if previous_agent_apples[ag] > agents_apples[ag]:
+                donation_appendable += 1
+            elif actions[ag] == 9 and previous_agent_apples[ag] < agents_apples[ag]:
+                donation_appendable += -1
+            ags_donation_evolution[ag].append(donation_appendable)
+        pool_evolution.append(min(COMMON_POOL_LIMIT, common_pool_apples))
+
+        previous_agent_apples = agents_apples
 
 
+    for ag in range(number_of_agents):
+        np.save("apple_evo"+str(ag)+"i"+str(it)+".npy", ags_apples_evolution[ag])
+        np.save("apple_donation" + str(ag) + "i" + str(it) + ".npy", ags_donation_evolution[ag])
+    np.save("pool_evoi"+str(it)+".npy", pool_evolution)
+
+    return True
 
 def policy_creator(Q_function, action_space, mode="scalarisation", weights=[1.0 , 0.0]):
 
@@ -326,7 +389,9 @@ def policy_creator(Q_function, action_space, mode="scalarisation", weights=[1.0 
     for state in range(len_state_space):
 
         if mode == "scalarisation":
+
             index = np.argmax(scalarised_Qs(len(action_space), Q_function[state][action_space], weights))
+
             policy[state] = action_space[index]
         elif mode == "lex":
             _, _, policy[state] = lexicographic_Qs(action_space, Q_function[state][action_space])
