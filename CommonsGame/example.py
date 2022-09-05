@@ -1,12 +1,12 @@
 import numpy as np
 import gym
-from constants import tinyMap, smallMap, bigMap
+from CommonsGame.constants import tinyMap, smallMap, bigMap
 
 numAgents = 2
 
-env = gym.make('CommonsGame:CommonsGame-v0', numAgents=numAgents, visualRadius=3, mapSketch=tinyMap,
+env = gym.make('CommonsGame-v0', numAgents=numAgents, visualRadius=3, mapSketch=tinyMap,
                fullState=False, tabularState=True, agent_pos=[[2, 0], [4, 2]])
-initial_state = env.reset(num_apples=0, common_pool=0)
+initial_state = env.reset(num_apples=[0, 0], common_pool=0, apples_yes_or_not=[True, True, True])
 
 print(env.observation_space)
 
@@ -28,8 +28,7 @@ print(initial_state[0])
 
 for t in range(100):
     print("--Time step", t, "--")
-    #nActions = np.random.randint(low=0, high=env.action_space.n, size=(numAgents,)).tolist()
-    nActions = [STAY, STAY]
+    nActions = np.random.randint(low=0, high=env.action_space.n, size=(numAgents,)).tolist()
     nObservations, nRewards, nDone, nInfo = env.step(nActions)
 
     print(nActions, nObservations[0], nRewards)

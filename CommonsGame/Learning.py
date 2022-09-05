@@ -3,8 +3,8 @@ import gym
 import random
 import argparse
 
-from constants import tinyMap, smallMap, bigMap, TOO_MANY_APPLES, COMMON_POOL_LIMIT
-from new_utils import *
+from CommonsGame.constants import tinyMap, smallMap, bigMap, TOO_MANY_APPLES, COMMON_POOL_LIMIT
+from CommonsGame.new_utils import *
 
 np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
 
@@ -71,7 +71,7 @@ def learning_loop(tabularRL, learning_rate=0.9, discount_factor=0.8, mode="lex",
     :param tabularRL: boolean to know if you will be using tabular RL or deep RL
     :return:
     """
-    environment = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3,
+    environment = gym.make('CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3,
                    fullState=False, tabularState=tabularRL)
     info_states = np.zeros((number_of_agents, len_state_space))
     info_state_actions = np.zeros((number_of_agents, len_state_space, environment.action_space.n))
@@ -101,7 +101,7 @@ def learning_loop(tabularRL, learning_rate=0.9, discount_factor=0.8, mode="lex",
 
 
 
-        environment = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3,fullState=False, tabularState=tabularRL, agent_pos=ag_pos)
+        environment = gym.make('CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3,fullState=False, tabularState=tabularRL, agent_pos=ag_pos)
         for episode in range(episodes):
 
             total_episodes += 1
@@ -170,7 +170,7 @@ if __name__ == '__main__':
         for mode in ["scalarisation"]:
 
 
-            env = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL)
+            env = gym.make('CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL)
             total_action_space = [i for i in range(env.action_space.n)]
             action_space = new_action_space(total_action_space, env)
 
@@ -191,7 +191,7 @@ if __name__ == '__main__':
 
         agents_position = [[3, 3], [3, 0]]
 
-        env = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3,
+        env = gym.make('CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3,
                        fullState=False, tabularState=tabularRL, agent_pos=agents_position)
 
         evaluation(env, tabularRL, we_render=True, policies=[policy0, policy1], how_much=400)

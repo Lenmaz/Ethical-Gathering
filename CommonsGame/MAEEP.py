@@ -1,9 +1,9 @@
 import numpy as np
 import gym
-from new_utils import number_of_agents, new_action_space, policy_NULL
-from constants import COMMON_POOL_LIMIT, tinyMap
-from OLS import Optimistic_Linear_Support as SAEEP
-from ValueIteration import value_iteration
+from CommonsGame.new_utils import number_of_agents, new_action_space, policy_creator, policy_NULL
+from CommonsGame.constants import COMMON_POOL_LIMIT, tinyMap
+from CommonsGame.OLS import Optimistic_Linear_Support as SAEEP
+from CommonsGame.ValueIteration import value_iteration
 
 policy_folder = "policies/"
 v_folder = "v_functions/"
@@ -27,7 +27,7 @@ def ethical_equilibrium_computation():
         try:
             ethical_equilibrium.append(np.load(policy_folder+"ref_policy"+str(agent)+"_C"+str(COMMON_POOL_LIMIT)+".npy"))
         except:
-            environment = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap,
+            environment = gym.make('CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap,
                                    visualRadius=3, fullState=False, tabularState=True)
 
 

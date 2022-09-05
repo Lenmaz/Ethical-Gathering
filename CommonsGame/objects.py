@@ -268,7 +268,6 @@ class AppleDrape(pythings.Drape):
         cannot_receive_yet = False #only when the common pool had 0 apples, one agent donates and the other tries to take it in the same turn
         cannot_donate_yet = False
 
-        #print(self.common_pool)
 
 
         for i in range(len(self.agentChars)):
@@ -364,12 +363,8 @@ class AppleDrape(pythings.Drape):
                 ethical_reward = donation*DONATION_REWARD + shot*SHOOTING_PUNISHMENT + greedy*TOO_MANY_APPLES_PUNISHMENT
                 sustain_reward = + not_stupid*DID_NOTHING_BECAUSE_MANY_APPLES_REWARD
 
-                # for Single_Objective you need: the_reward = individual_reward
-                #the_reward = individual_reward
-
                 the_reward = [individual_reward, ethical_reward]
 
-                #print(the_reward)
 
                 rewards.append(the_reward)
 

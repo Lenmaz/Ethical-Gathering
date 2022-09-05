@@ -1,8 +1,8 @@
 import numpy as np
 import gym
 
-from constants import tinyMap, smallMap, bigMap, TOO_MANY_APPLES, COMMON_POOL_HAS_LIMIT
-from new_utils import *
+from CommonsGame.constants import tinyMap, smallMap, bigMap, TOO_MANY_APPLES, COMMON_POOL_HAS_LIMIT
+from CommonsGame.new_utils import *
 
 DONATE = 8
 TAKE_DONATION = 9
@@ -263,7 +263,7 @@ def create_model():
     """
 
     state_count = 0
-    environment = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3,
+    environment = gym.make('CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3,
                            fullState=False, tabularState=True)
 
     total_action_space = [i for i in range(environment.action_space.n)]

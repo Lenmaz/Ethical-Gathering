@@ -1,8 +1,8 @@
 import numpy as np
 import gym
 
-from constants import tinyMap, smallMap, bigMap, TOO_MANY_APPLES, COMMON_POOL_HAS_LIMIT
-from new_utils import *
+from CommonsGame.constants import tinyMap, smallMap, bigMap, TOO_MANY_APPLES, COMMON_POOL_HAS_LIMIT
+from CommonsGame.new_utils import *
 from CommonsGame.ValueIterationAuxiliar import probsV_calculator, create_model
 
 DONATE = 8
@@ -170,7 +170,7 @@ def value_iteration(agent, mode="scalarisation", discount_factor=0.8, weights=[1
         create_model()
         model = np.load("model.npy")
 
-    environment = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL)
+    environment = gym.make('CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL)
     total_action_space = [i for i in range(environment.action_space.n)]
     action_space = new_action_space(total_action_space, environment)
 
@@ -199,7 +199,7 @@ if __name__ == '__main__':
 
     if training_now:
 
-        environment = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL)
+        environment = gym.make('CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL)
 
         total_action_space = [i for i in range(environment.action_space.n)]
         action_space = new_action_space(total_action_space, environment)
@@ -218,6 +218,6 @@ if __name__ == '__main__':
         policy0 = np.load(policy_folder+"policy0_C" + str(COMMON_POOL_LIMIT) + what + ".npy")
         policy1 = np.load(policy_folder+"policy1_C" + str(COMMON_POOL_LIMIT) + what + ".npy")
 
-        env = gym.make('CommonsGame:CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL, agent_pos=[[3, 0], [3, 3]])
+        env = gym.make('CommonsGame-v0', numAgents=number_of_agents, mapSketch=tinyMap, visualRadius=3, fullState=False, tabularState=tabularRL, agent_pos=[[3, 0], [3, 3]])
 
         evaluation(env, tabularRL, we_render=True, policies=[policy0, policy1], how_much=400)

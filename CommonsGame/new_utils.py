@@ -1,5 +1,5 @@
 import numpy as np
-from constants import TOO_MANY_APPLES, COMMON_POOL_HAS_LIMIT, COMMON_POOL_LIMIT
+from CommonsGame.constants import TOO_MANY_APPLES, COMMON_POOL_HAS_LIMIT, COMMON_POOL_LIMIT
 
 policy_folder = "policies/"
 policy_NULL = np.load(policy_folder+"policy_NULL.npy")

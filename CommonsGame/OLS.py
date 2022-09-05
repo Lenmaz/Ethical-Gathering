@@ -1,8 +1,8 @@
 import numpy as np
 
-from new_utils import *
-from ValueIteration import value_iteration
-from constants import COMMON_POOL_LIMIT
+from CommonsGame.new_utils import *
+from CommonsGame.ValueIteration import value_iteration
+from CommonsGame.constants import COMMON_POOL_LIMIT
 
 v_folder = "v_functions/"
 
